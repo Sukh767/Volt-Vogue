@@ -125,3 +125,54 @@ export const logout = async(req, res) => {
         res.status(500).json({message: 'Server error', error: error.message})
     }
 }
+
+// @desc    Get user details
+// @route   GET /api/auth/profile
+// @access  Private
+
+// export const getUserProfile = async(req,res)=>{}
+
+// This will re-create or regenerate the refresh token
+export const refreshToken = async (req, res) => {
+    try {
+        const { refreshToken } = req.cookies;
+
+        if (!refreshToken) {
+            return res.status(401).json({ message: 'Unauthorized. Refresh token is missing.' });
+        }
+
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_TOKEN_SECRET);
+        const storedToken = await redis.get(`refreshToken: ${decoded.userId}`);
+
+        if (!storedToken || storedToken !== refreshToken) {
+            return res.status(401).json({ message: 'Unauthorized. Invalid refresh token.' });
+        }
+
+        const accessToken = jwt.sign(
+            { userId: decoded.userId },
+            process.env.JWT_ACCESS_TOKEN_SECRET,
+            { expiresIn: '15m' }
+        );
+
+        // Update access token in the cookies
+        res.cookie('accessToken', accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000, // Expires in 15 minutes
+        });
+
+        return res.status(200).json({ message: 'Access token refreshed successfully.' });
+    } catch (error) {
+        console.error('Error in refreshToken:', error);
+
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ message: 'Invalid token. Please log in again.' });
+        } else if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ message: 'Refresh token expired. Please log in again.' });
+        }
+
+        return res.status(500).json({ message: 'Internal server error.', error: error.message });
+    }
+};
+
