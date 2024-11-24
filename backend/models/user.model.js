@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import bycrpt from 'bcryptjs'
+import bcrypt from 'bcryptjs'
 
 const userSchema = new Schema({
     name: {
@@ -35,8 +35,8 @@ const userSchema = new Schema({
     ],
     role: {
         type: String,
-        enum: ['customer', 'admin'],
-        default: 'customer'
+        enum: ['User', 'Admin'],
+        default: 'User'
     }
 
 },{
@@ -48,8 +48,8 @@ userSchema.pre('save', async function(next){
     if(!this.isModified('password')) return next()
 
     try {
-        const salt = await bycrpt.genSalt(12)
-        this.password = await bycrpt.hash(this.password, salt)
+        const salt = await bcrypt.genSalt(12)
+        this.password = await bcrypt.hash(this.password, salt)
         next()
     } catch (error) {
         next(error)
@@ -57,10 +57,10 @@ userSchema.pre('save', async function(next){
 })
 
 //Compare the provided password with the stored password in the database
-//Compare the two passwords using bcrypt
-userSchema.method.comparePassword = async function(password){
-    return await bycrpt.compare(password, this.password)
-}
+// Add comparePassword method to userSchema
+userSchema.methods.comparePassword = async function (password) {
+    return await bcrypt.compare(password, this.password);
+  };
 
 
 const User = mongoose.model('User', userSchema)

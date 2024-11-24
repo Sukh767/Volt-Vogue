@@ -19,7 +19,7 @@ const storeRefreshToken = async(userId, refreshToken) => {
 }
 
 // Set cookie
-const setCookie = (res, accessToken, refreshToken) => {
+const setCookies = (res, accessToken, refreshToken) => {
     res.cookie('accessToken', accessToken, {
         httpOnly: true, // prevent XSS attacks, cross site scripting attacks
         secure: process.env.NODE_ENV === 'production',
@@ -43,7 +43,7 @@ export const signup = async(req, res) => {
         const userExists = await User.findOne({ email })
 
     if(userExists){
-        return res.status(400).json({message: 'User already exists'})
+        return res.status(400).json({message: 'User already exists, with this email'})
     }
 
     const user = await User.create({ name, email, password })
@@ -52,15 +52,16 @@ export const signup = async(req, res) => {
     const {accessToken, refreshToken } = generateTokens(user._id)
     await storeRefreshToken(user._id,refreshToken)
 
-    setCookie(res, accessToken, refreshToken)
+    setCookies(res, accessToken, refreshToken)
 
     res.status(201).json({ user: {
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role
-    }, message: 'User created successfully'})
+    }, message: 'Account created successfully'})
     } catch (error) {
+        console.log('signup controller error',error)
         res.status(500).json({message: error.message})
     }
 }
@@ -68,13 +69,59 @@ export const signup = async(req, res) => {
 // @desc    Login a user
 // @route   POST /api/auth/login
 // @access  Public
-export const login = async(req, res) => {
-    res.send('Login controller')
-}
+export const login = async (req, res) => {
+    try {
+      const { email, password } = req.body;
+  
+      // Check if user exists
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+  
+      // Verify password
+      const isValid = await user.comparePassword(password);
+      if (!isValid) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+  
+      // Generate tokens
+      const { accessToken, refreshToken } = generateTokens(user._id);
+  
+      // Store the refresh token in Redis
+      await storeRefreshToken(user._id, refreshToken);
+  
+      // Set cookies with tokens
+      setCookies(res, accessToken, refreshToken);
+  
+      // Respond with user details
+      res.status(200).json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      });
+    } catch (error) {
+      console.error('Login controller error:', error);
+      res.status(500).json({ message: 'Server error. Please try again later.' });
+    }
+  };
+  
 
 // @desc    Logout a user
 // @route   POST /api/auth/logout
 // @access  Public
 export const logout = async(req, res) => {
-    res.send('Logout controller')
+    try {
+        const refreshToken = req.cookies.refreshToken
+        if(refreshToken){
+            const decode = jwt.verify(refreshToken, process.env.JWT_REFRESH_TOKEN_SECRET)
+            await redis.del(`refreshToken: ${decode.userId}`)
+            res.clearCookie('refreshToken')
+            res.status(200).json({message: 'Logout successfull'})
+        }
+    } catch (error) {
+        console.log('Logout controller error',error)
+        res.status(500).json({message: 'Server error', error: error.message})
+    }
 }
