@@ -1,6 +1,7 @@
 import cloudinary from '../lib/cloudinary.js';
 import { redis } from '../lib/redis.js';
 import Product from '../models/product.model.js';
+import updateFeaturedProductCache from '../services/cache.service.js';
 
 export const getAllProducts = async (req, res) => {
   try {
@@ -246,3 +247,45 @@ export const getProductsByCategory = async (req, res) => {
   }
 };
 
+export const toggleFeaturedProduct = async (req, res) => {
+  try {
+    const { productId } = req.params; // Extract productId from the route parameters
+
+    // Validate the productId parameter
+    if (!productId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Product ID is required.',
+      });
+    }
+
+    // Check if the product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found.',
+      });
+    }
+
+    // Toggle the isFeatured field
+    product.isFeatured = !product.isFeatured;
+    const updatedProduct = await product.save();
+
+    // Update the featured product cache
+    await updateFeaturedProductCache();
+
+    res.status(200).json({
+      success: true,
+      message: 'Product featured status toggled successfully.',
+      data: updatedProduct,
+    });
+  } catch (error) {
+    console.error('Error in toggleFeaturedProduct:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to toggle featured status. Please try again later.',
+      error: error.message,
+    });
+  }
+};
