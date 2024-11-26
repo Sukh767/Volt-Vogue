@@ -1,11 +1,23 @@
-import React from "react";
-import { Routes, Route } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import AdminDashboard from "./component/AdminDashboard";
 import Navbar from "./component/Navbar";
+import { Toaster } from "react-hot-toast";
+import { useUserStore } from "./stores/useUserStore";
+import LoadingSpinner from "./component/LoadingSpinner";
 const App = () => {
+
+  const { user, checkAuth,checkingAuth } = useUserStore();
+  useEffect(() => {
+    checkAuth()
+  },[checkAuth])
+
+  if(checkingAuth){
+    return <LoadingSpinner/>
+  }
   return (
     <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
@@ -17,10 +29,11 @@ const App = () => {
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} exact />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={!user ? <Signup /> : <Navigate to='/'/>} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to='/'/>} />
       </Routes>
       </div>
+      <Toaster/>
     </div>
   );
 };
