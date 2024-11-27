@@ -1,4 +1,4 @@
-import cloudinary from '../lib/cloudinary.js';
+import { uploadOnCloudinary } from '../lib/cloudinary.js'
 import { redis } from '../lib/redis.js';
 import Product from '../models/product.model.js';
 import updateFeaturedProductCache from '../services/cache.service.js';
@@ -89,20 +89,51 @@ export const createProduct = async (req, res) => {
       category,
       brand,
       stock,
-      images,
+      isFeatured = false,
     } = req.body;
 
-    let uploadedImage = null;
+    // console.log('Request body:', req.body);
+    // console.log('Uploaded files:', req.files);
 
-    // Upload image to Cloudinary if provided
-    if (images) {
-      const cloudinaryResponse = await cloudinary.uploader.upload(images, {
-        folder: 'products',
+    if (!name || !description || !price || !category || !brand || !stock) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required.',
       });
-      uploadedImage = cloudinaryResponse.secure_url;
     }
 
-    // Create a new product in the database
+    if (!req.files || !req.files.images || req.files.images.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one image is required.',
+      });
+    }
+
+    let imageLocalPath = req.files.images;
+    let imageArray = [];
+
+    for (let i = 0; i < imageLocalPath.length; i++) {
+      const imageLinks = imageLocalPath[i]?.path;
+      // console.log('Image path:', imageLinks);
+    
+      const result = await uploadOnCloudinary(imageLinks);
+      if (result) {
+        imageArray.push({
+          public_id: result.public_id, // Map public_id to publicId
+          url: result.secure_url || result.url, // Use secure_url if available
+        });
+      } else {
+        console.error(`Failed to upload image at index ${i}`);
+      }
+    }    
+
+    if (imageArray.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to upload images to Cloudinary.',
+      });
+    }
+
     const product = await Product.create({
       name,
       description,
@@ -111,7 +142,8 @@ export const createProduct = async (req, res) => {
       category,
       brand,
       stock,
-      images: uploadedImage || '' // Set image URL or fallback to empty string
+      images: imageArray,
+      isFeatured,
     });
 
     res.status(201).json({
