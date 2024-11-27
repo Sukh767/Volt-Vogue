@@ -26,6 +26,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json()); // Parse JSON request bodies
 app.use(cookieParser());
+app.use(express.urlencoded({extended: true}))
 
 // All routes
 app.use('/api/auth', authRoutes);

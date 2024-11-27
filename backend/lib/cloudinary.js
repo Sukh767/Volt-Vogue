@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import dotenv from 'dotenv'
+import fs from 'fs'
 
 dotenv.config()
 
@@ -9,5 +10,18 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
+export const uploadOnCloudinary = async (path) => {
+    try {
+      if (!path) throw new Error('File path is missing');
+  
+      const response = await cloudinary.uploader.upload(path, { resource_type: 'auto' });  
+      // Remove the temporary file after upload
+      fs.unlinkSync(path);
+      return response;
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+      fs.unlinkSync(path); // Clean up the file in case of an error
+      return null;
+    }
+}; 
 
-export default cloudinary;

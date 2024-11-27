@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
-import AdminDashboard from "./component/AdminDashboard";
+import AdminDashboardX from "./component/AdminDashboardX";
 import Navbar from "./component/Navbar";
 import { Toaster } from "react-hot-toast";
 import { useUserStore } from "./stores/useUserStore";
@@ -31,6 +31,7 @@ const App = () => {
         <Route path="/" element={<Home />} exact />
         <Route path="/signup" element={!user ? <Signup /> : <Navigate to='/'/>} />
         <Route path="/login" element={!user ? <Login /> : <Navigate to='/'/>} />
+        <Route path="/admin-dashboard" element={user?.role === "Admin" ? <AdminDashboardX /> : <Navigate to='/'/>} />
       </Routes>
       </div>
       <Toaster/>
