@@ -10,18 +10,26 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
-export const uploadOnCloudinary = async (path) => {
-    try {
-      if (!path) throw new Error('File path is missing');
-  
-      const response = await cloudinary.uploader.upload(path, { resource_type: 'auto' });  
-      // Remove the temporary file after upload
-      fs.unlinkSync(path);
-      return response;
-    } catch (error) {
-      console.error('Cloudinary upload error:', error);
-      fs.unlinkSync(path); // Clean up the file in case of an error
-      return null;
-    }
-}; 
+export const uploadOnCloudinary = async (path, retries = 3) => {
+  try {
+    if (!path) throw new Error("File path is missing");
 
+    const response = await cloudinary.uploader.upload(path, { resource_type: "auto" });
+
+    // Remove the temporary file after upload
+    fs.unlinkSync(path);
+    return response;
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+
+    // Retry logic for timeout errors
+    if (retries > 0 && error.error?.http_code === 499) {
+      console.log(`Retrying upload... Attempts left: ${retries - 1}`);
+      return uploadOnCloudinary(path, retries - 1);
+    }
+
+    // Ensure temporary files are cleaned up in case of an error
+    if (fs.existsSync(path)) fs.unlinkSync(path);
+    return null;
+  }
+};

@@ -1,4 +1,4 @@
-import { uploadOnCloudinary } from '../lib/cloudinary.js'
+import  { uploadOnCloudinary } from '../lib/cloudinary.js'
 import { redis } from '../lib/redis.js';
 import Product from '../models/product.model.js';
 import updateFeaturedProductCache from '../services/cache.service.js';
@@ -163,25 +163,28 @@ export const createProduct = async (req, res) => {
 
 export const deleteProduct = async (req, res) => {
   try {
-    const { productId } = req.params; // Extract productId from the route parameters
+    const { id: productId } = req.params; // Extract productId from route parameters
 
     // Check if the product exists
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: 'Product not found',
+        message: "Product not found",
       });
     }
 
-    if (product.images) {
-      const publicId = product.images.split('/').pop().split('.')[0]; //this will get the id of the image
-
-      try {
-        await cloudinary.uploader.destroy(`products/${publicId}`);
-        console.log('deleted image from the cloudinary');
-      } catch (error) {
-        console.log('delete product controller', error);
+    // Delete all images associated with the product
+    if (product.images && Array.isArray(product.images)) {
+      for (const image of product.images) {
+        try {
+          if (image.public_id) {
+            await cloudinary.uploader.destroy(image.public_id);
+            console.log(`Deleted image ${image.public_id} from Cloudinary`);
+          }
+        } catch (error) {
+          console.error(`Failed to delete image ${image.public_id} from Cloudinary`, error);
+        }
       }
     }
 
@@ -190,13 +193,13 @@ export const deleteProduct = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Product deleted successfully',
+      message: "Product deleted successfully",
     });
   } catch (error) {
-    console.error('Error deleting product:', error.message);
+    console.error("Error deleting product:", error.message);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete product. Please try again later.',
+      message: "Failed to delete product. Please try again later.",
       error: error.message,
     });
   }
@@ -281,7 +284,7 @@ export const getProductsByCategory = async (req, res) => {
 
 export const toggleFeaturedProduct = async (req, res) => {
   try {
-    const { productId } = req.params; // Extract productId from the route parameters
+    const { id:productId } = req.params; // Extract productId from the route parameters
 
     // Validate the productId parameter
     if (!productId) {

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import axiosInstance from '../lib/axios'
 import { toast } from 'react-hot-toast'
+import axios from 'axios'
 
 export const useUserStore = create((set, get) => ({
   user: null,
@@ -63,8 +64,61 @@ export const useUserStore = create((set, get) => ({
       console.log('logout response', response.data)
       toast.success(response.data.message)
       set({ user: null, checkingAuth: false })
+      window.location.href = '/login';
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Something went wrong')
     }
   },
+
+  //get accessToken, regenerate it from refreshToken
+
+  refreshToken: async () => {
+    console.log('called')
+    if (get().checkingAuth) return;
+    console.log('called2')
+    set({ checkingAuth: true });
+  
+    try {
+      // Trigger the refresh endpoint
+      await axiosInstance.post('/auth/refresh-token');
+  
+      // Assume the server has set the new access token in cookies
+      set({ checkingAuth: false });
+    } catch (error) {
+      set({ user: null, checkingAuth: false });
+      throw error;
+    }
+  }  
 }))
+
+// Axios interceptor for token refresh
+let refreshPromise = null;
+
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Handle simultaneous refresh attempts
+        if (!refreshPromise) {
+          refreshPromise = useUserStore.getState().refreshToken();
+        }
+
+        await refreshPromise;
+        refreshPromise = null;
+
+        return axiosInstance(originalRequest);
+      } catch (refreshError) {
+        refreshPromise = null;
+        useUserStore.getState().logout();
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
