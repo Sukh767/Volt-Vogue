@@ -6,10 +6,16 @@ import ProductList from "./Admin/ProductList";
 import AddProduct from "./Admin/AddProduct";
 import OrderList from "./Admin/OrderList";
 import Profile from "./Admin/Profile";
+import { useProductStore } from "../stores/useProductStore";
 
 const AdminDashboard = () => {
   const [greeting, setGreeting] = useState("");
   const [activeSection, setActiveSection] = useState("Analytics");
+
+  const {fetchAllProduct, loading} = useProductStore()
+  useEffect(()=>{
+  fetchAllProduct()
+  },[fetchAllProduct])
 
   useEffect(() => {
     const hour = new Date().getHours();
