@@ -10,13 +10,13 @@ const generateTokens = (userId) => {
   const accessToken = jwt.sign(
     { userId },
     process.env.JWT_ACCESS_TOKEN_SECRET,
-    { expiresIn: '1m' }
+    { expiresIn: '15m' }
   );
 
   const refreshToken = jwt.sign(
     { userId },
     process.env.JWT_REFRESH_TOKEN_SECRET,
-    { expiresIn: '1d' }
+    { expiresIn: '7d' }
   );
   return { accessToken, refreshToken };
 };
@@ -27,7 +27,7 @@ const storeRefreshToken = async (userId, refreshToken) => {
     `refreshToken: ${userId}`,
     refreshToken,
     'EX',
-    24 * 60 * 60 * 1000
+    7 * 60 * 60 * 1000
   );
 };
 
@@ -37,13 +37,13 @@ const setCookies = (res, accessToken, refreshToken) => {
     httpOnly: true, // prevent XSS attacks, cross site scripting attacks
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict', //prevent CSRF attacks, cross site request forgery attacks
-    maxAge: 1 * 60 * 1000, //Expire in 15m
+    maxAge: 15 * 60 * 1000, //Expire in 15m
   });
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true, // prevent XSS attacks, cross site scripting attacks
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict', // prevent CSRF attacks, cross site request forgery attacks
-    maxAge: 24 * 60 * 60 * 1000, // Expire in 1d
+    maxAge: 7 * 60 * 60 * 1000, // Expire in 1d
   });
 };
 
@@ -212,7 +212,7 @@ export const refreshToken = async (req, res) => {
     const accessToken = jwt.sign(
       { userId: decoded.userId },
       process.env.JWT_ACCESS_TOKEN_SECRET,
-      { expiresIn: '1m' }
+      { expiresIn: '15m' }
     );
 
     console.log('ac',accessToken)
@@ -222,7 +222,7 @@ export const refreshToken = async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 1 * 60 * 1000, // Expires in 15 minutes
+      maxAge: 15 * 60 * 1000, // Expires in 15 minutes
     });
 
     return res
