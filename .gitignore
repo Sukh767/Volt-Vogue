@@ -1,512 +1,89 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Check, X, Clock as PendingIcon, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
-import './Appointments.css';
-import { useAuth } from '../../../../Context/AuthContext';
-import { cancelAppointment, getAppointmentsByPatientId } from '../../../../mocks-api/appointment.api';
+import {
+  type ReactNode,
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+} from "react";
 
-const Appointments = () => {
-  const { user } = useAuth();
-  const [expanded, setExpanded] = useState(true);
-  const [selectedTab, setSelectedTab] = useState<'upcoming' | 'past'>('upcoming');
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
+interface AuthContextType {
+  isLoggedIn: boolean;
+  user: User | null;
+  token: string | null;
+  login: (userData: {
+    user: object;
+    tokens: { accessToken: string; refreshToken: string };
+  }) => void;
+  logout: () => void;
+}
 
-  //Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 5;
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        if (user?.id) {
-          const data = await getAppointmentsByPatientId(user.id)
-          console.log(data)
-          setAppointments(data);
-        }
-      } catch (err) {
-        setError('Failed to fetch appointments');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAppointments();
-  }, [user?.id]);
-
-  // Get current date in YYYY-MM-DD format
-  const today = new Date().toISOString().split('T')[0];
-
-  // Filter appointments for current patient
-  const patientAppointments = appointments.filter(
-    appointment => appointment.patientId === user?.id
-  );
-
-  // Separate upcoming and past appointments
-  const upcomingAppointments = patientAppointments.filter(
-    appointment => appointment.date >= today && appointment.status !== 'COMPLETED' && appointment.status !== 'CANCELLED'
-  ).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
-
-  const pastAppointments = patientAppointments.filter(
-    appointment => appointment.date < today || appointment.status === 'COMPLETED' || appointment.status === 'CANCELLED'
-  ).sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
-
-  // Format date to be more readable
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-
-  // Get status icon and color
-  const getStatusDetails = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':
-        return { icon: <Check size={16} />, color: 'var(--hc-green)', text: 'Confirmed' };
-      case 'PENDING':
-        return { icon: <PendingIcon size={16} />, color: 'var(--hc-orange)', text: 'Pending' };
-      case 'COMPLETED':
-        return { icon: <Check size={16} />, color: 'var(--hc-blue)', text: 'Completed' };
-      case 'CANCELLED':
-        return { icon: <X size={16} />, color: 'var(--hc-red)', text: 'Cancelled' };
-      case 'REJECTED':
-        return { icon: <AlertTriangle size={16} />, color: 'var(--hc-red)', text: 'Rejected' };
-      default:
-        return { icon: null, color: 'var(--hc-gray)', text: status };
-    }
-  };
-
-  const handleCancelAppointment = async (appointmentId: number) => {
-    try {
-      setLoading(true);
-      await cancelAppointment(appointmentId, user?.id);
-      // Update local state to reflect cancellation
-      setAppointments(prev => prev.map(app => 
-        app.id === appointmentId ? { ...app, status: 'CANCELLED' } : app
-      ));
-    } catch (err) {
-      setError('Failed to cancel appointment');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading && appointments.length === 0) {
-    return <div className="appointments-card">Loading appointments...</div>;
-  }
-
-  if (error) {
-    return <div className="appointments-card">{error}</div>;
-  }
-
-  return (
-    <div className={`appointments-card ${expanded ? 'expanded' : ''}`}>
-      <div className="appointments-header">
-        <div className="header-left">
-          <Calendar size={20} />
-          <h3>Appointments</h3>
-          {upcomingAppointments.length > 0 && (
-            <span className="badge">{upcomingAppointments.length}</span>
-          )}
-        </div>
-        <button 
-          className="toggle-button"
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-        </button>
-      </div>
-
-      {expanded && (
-        <div className="appointments-content">
-          <div className="tabs">
-            <button
-              className={`tab ${selectedTab === 'upcoming' ? 'active' : ''}`}
-              onClick={() => setSelectedTab('upcoming')}
-            >
-              Upcoming
-            </button>
-            <button
-              className={`tab ${selectedTab === 'past' ? 'active' : ''}`}
-              onClick={() => setSelectedTab('past')}
-            >
-              Past
-            </button>
-          </div>
-
-          <div className="appointments-list">
-            {(selectedTab === 'upcoming' ? upcomingAppointments : pastAppointments).length === 0 ? (
-              <div className="empty-state">
-                No {selectedTab === 'upcoming' ? 'upcoming' : 'past'} appointments
-              </div>
-            ) : (
-              (selectedTab === 'upcoming' ? upcomingAppointments : pastAppointments).map(appointment => (
-                <div key={appointment.id} className="appointment-item">
-                  <div className="appointment-summary">
-                    <div className="doctor-info">
-                      <h4>Dr. {appointment.doctorName}</h4>
-                      <p className="specialty">{appointment.specialty}</p>
-                    </div>
-                    <div className="appointment-time">
-                      <div className="date">
-                        <Calendar size={14} />
-                        {formatDate(appointment.date)}
-                      </div>
-                      <div className="time">
-                        <Clock size={14} />
-                        {appointment.time}
-                      </div>
-                    </div>
-                    <div
-                      className="status"
-                      style={{ color: getStatusDetails(appointment.status).color }}
-                    >
-                      {getStatusDetails(appointment.status).icon}
-                      {getStatusDetails(appointment.status).text}
-                    </div>
-                  </div>
-
-                  <div className="appointment-details">
-                    <div className="detail-row">
-                      <span className="label">Reason:</span>
-                      <span className="value">{appointment.reason}</span>
-                    </div>
-                    
-                    {selectedTab === 'upcoming' && appointment.status !== 'CANCELLED' && (
-                      <button 
-                        className="cancel-button"
-                        onClick={() => handleCancelAppointment(appointment.id)}
-                        disabled={loading}
-                      >
-                        {loading ? 'Processing...' : 'Cancel Appointment'}
-                      </button>
-                    )}
-
-                    {appointment.status === 'COMPLETED' && (
-                      <button className="view-prescription">
-                        View Prescription
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 };
 
-/* Appointments.css */
-.appointments-card {
-  background-color: var(--hc-white);
-  border-radius: 0.75rem;
-  padding: 0.5rem;
-  /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); */
-  /* height: 100%; */
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  transition: all 0.3s ease;
+interface AuthProviderProps {
+  children: ReactNode;
 }
 
-.appointments-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  /* padding: 0.5rem 0; */
-  cursor: pointer;
-  user-select: none;
-}
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<object | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    const savedAccessToken = localStorage.getItem("token");
+    const savedRefreshToken = localStorage.getItem("refreshToken");
 
-.header-left h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1f2937;
-}
+    if (savedUser && savedAccessToken) {
+      setUser(JSON.parse(savedUser));
+      setAccessToken(savedAccessToken);
+      setRefreshToken(savedRefreshToken);
+      setIsLoggedIn(true);
+    }
+  }, []);
 
-/* Add these to your existing Appointments.css */
-.appointment-details {
-  padding: 0.75rem;
-  background-color: #f9fafb;
-  border-top: 1px solid #e5e7eb;
-}
+  const login = (userData: {
+    user: object;
+    tokens: { accessToken: string; refreshToken: string };
+  }) => {
+    setIsLoggedIn(true);
+    setUser(userData.user);
+    setAccessToken(userData.tokens.accessToken);
+    setRefreshToken(userData.tokens.refreshToken);
 
-.detail-row {
-  display: flex;
-  margin-bottom: 0.5rem;
-  font-size: 0.85rem;
-}
+    localStorage.setItem("user", JSON.stringify(userData.user));
+    localStorage.setItem("token", userData.tokens.accessToken);
+    localStorage.setItem("refreshToken", userData.tokens.refreshToken);
+  };
 
-.detail-row:last-child {
-  margin-bottom: 0;
-}
+  const logout = () => {
+    setIsLoggedIn(false);
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+  };
 
-.label {
-  font-weight: 500;
-  color: #4b5563;
-  min-width: 120px;
-}
-
-.value {
-  color: #1f2937;
-}
-
-.cancel-button {
-  margin-top: 0.75rem;
-  padding: 0.5rem 1rem;
-  background-color: var(--hc-red);
-  color: white;
-  border: none;
-  border-radius: 0.25rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  width: 100%;
-  background-color: var(--hc-alert);
-}
-
-.cancel-button:hover {
-  background-color: #dc2626;
-}
-
-.cancel-button:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
-}
-
-.view-prescription {
-  margin-top: 0.75rem;
-  padding: 0.5rem 1rem;
-  background-color: var(--hc-primary);
-  color: white;
-  border: none;
-  border-radius: 0.25rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  width: 100%;
-}
-
-.view-prescription:hover {
-  background-color: var(--hc-secondary);
-}
-
-.badge {
-  background-color: #3b82f6;
-  color: white;
-  border-radius: 9999px;
-  padding: 0.15rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.toggle-button {
-  background: none;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0.25rem;
-}
-
-.appointments-content {
-  flex: 1;
-  overflow-y: auto;
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid #e5e7eb;
-}
-
-.tabs {
-  display: flex;
-  border-bottom: 1px solid #e5e7eb;
-  margin-bottom: 0.75rem;
-}
-
-.tab {
-  padding: 0.5rem 1rem;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: #6b7280;
-}
-
-.tab.active {
-  color: #3b82f6;
-  border-bottom-color: #3b82f6;
-  font-weight: 500;
-}
-
-.appointments-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.appointment-item {
-  border-radius: 0.5rem;
-  overflow: hidden;
-  background-color: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.appointment-summary {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  cursor: pointer;
-}
-
-.appointment-summary:hover {
-  background-color: #f9fafb;
-}
-
-.doctor-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.doctor-info h4 {
-  margin: 0;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.specialty {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.75rem;
-  color: #6b7280;
-}
-
-.appointment-time {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.8rem;
-  color: #4b5563;
-  min-width: 90px;
-}
-
-.appointment-time > div {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.status {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  min-width: 90px;
-  justify-content: flex-end;
-}
-
-.expand-button {
-  background: none;
-  border: none;
-  color: #9ca3af;
-  cursor: pointer;
-  padding: 0.25rem;
-}
-
-.appointment-details {
-  padding: 0.75rem;
-  background-color: #f9fafb;
-  border-top: 1px solid #e5e7eb;
-}
-
-.detail-row {
-  display: flex;
-  margin-bottom: 0.5rem;
-  font-size: 0.85rem;
-}
-
-.detail-row:last-child {
-  margin-bottom: 0;
-}
-
-.label {
-  font-weight: 500;
-  color: #4b5563;
-  min-width: 120px;
-}
-
-.value {
-  color: #1f2937;
-}
-
-.view-prescription {
-  margin-top: 0.75rem;
-  padding: 0.5rem 1rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.25rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.view-prescription:hover {
-  background-color: #2563eb;
-}
-
-.empty-state {
-  text-align: center;
-  color: #9ca3af;
-  padding: 1rem 0;
-  font-size: 0.9rem;
-}
-
-/* Scrollbar styling */
-.appointments-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.appointments-content::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.appointments-content::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.appointments-content::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
-}
-
-@media (max-width: 768px) {
-  .appointment-summary {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  
-  .doctor-info {
-    flex: 1 0 100%;
-  }
-  
-  .appointment-time {
-    flex-direction: row;
-    gap: 1rem;
-  }
-  
-  .status {
-    justify-content: flex-start;
-  }
-}
-
-export default Appointments;
+  return (
+    <AuthContext.Provider
+      value={{ isLoggedIn, user, token: accessToken, login, logout }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
