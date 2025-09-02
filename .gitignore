@@ -1,58 +1,247 @@
-import React, { useEffect } from "react";
-import { Route, Routes, Navigate } from "react-router-dom";
-import AOS from "aos";
-import "aos/dist/aos.css";
-import RegisterLogin from "./Page/UserManagement/Auth/RegisterLogin";
-import DoctorRegister from "./Components/Auth/Register/Doctor/DoctorRegister";
-import ProtectedRoute from "./Components/Protect/ProtectRoute";
+Description
 
-import DoctorDashboard from "./Page/Dashboard/DoctorDashboard/DoctorDashboard";
 
-import { useAuth } from "./Context/AuthContext";
-import Home from "./Page/Home/Home";
-import NotFound from "./Page/404/NotFound";
-import PatientDashboard from "./Page/Dashboard/PatientDashboard/PatientDashboard";
 
-const App: React.FC = () => {
-  const { isLoggedIn, user } = useAuth();
-  console.log("isLoggedIn:", isLoggedIn, "user:", user);
+Highline Motors showroom requires an automated application to manage the various details of their car bookings. They have developed an application that enables them to extract the details of the car bookings based on different criteria. Details of the different functions supported by the system are provided in this case study. 
 
-  useEffect(() => {
-    AOS.init({ duration: 1000, once: true });
-  }, []);
+You are required to write 'JUnit' test cases and check the correctness of the application developed. 
 
-  return (
-    <div className="app__container">
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/auth" element={<RegisterLogin />} />
-        <Route path="/doctor/register" element={<DoctorRegister />} />
+Functional Requirements: 
 
-        {/* Dynamic dashboard route */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute
-              isLoggedIn={isLoggedIn}
-              user={user}
-              allowedRole={user?.role}
-            >
-              {user?.role === "patient" ? (
-                <PatientDashboard />
-              ) : user?.role === "doctor" ? (
-                <DoctorDashboard />
-              ) : (
-                <Navigate to="/" replace />
-              )}
-            </ProtectedRoute>
-          }
-        />
+The application has the following classes and methods implemented:. 
 
-        {/* Not Found Page */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </div>
-  );
-};
+You are provided with a model-class CarBooking.
 
-export default App;
+Component Specification: CarBooking (Model Class) 
+
+Type (Class)
+
+Attributes  
+
+Methods 
+
+CarBooking
+
+String bookingId
+
+String customerName
+
+String customerNumber
+
+String carBrand
+
+String carModel
+
+Date deliveryDate
+
+double price
+
+Appropriate getters and setters no argument and a seven-argument constructors are provided as a part of the code skeleton.
+
+ 
+
+Here, the carBrand can take a value of either "Maruti", "Toyota", "Mahindra" and "Hyundai".
+
+The carModel values available based on the carBrand are mentioned below
+
+Car Brand
+
+Car models
+
+Maruti
+
+Swift, Baleno
+
+Mahindra
+
+Bolero, Thar
+
+Toyota
+
+Innova, Glanza
+
+Hyundai
+
+Exter, Venue
+
+ 
+
+[Note: carBrand and carModel are case insensitive].
+
+Component Specification:  InvalidCarBookingException (This class inherits the Exception Class)
+
+Type (Class)
+
+Methods
+
+InvalidCarBookingException 
+
+Provided with a single argument constructor - public InvalidCarBookingException (String message)
+
+ 
+
+You are also provided with a utility class BookingUtil and the below business requirements are implemented in it for which JUnit test cases are to be written and tested.
+
+ Component Specification: BookingUtil (Utility Class)
+
+Type (Class)
+
+Attributes  
+
+Methods
+
+BookingUtil
+
+List <CarBooking> carBookingList
+
+Getter and setter for the carBookingList are provided.
+
+ 
+
+The business requirements given below are implemented in the  BookingUtil class for which JUnit test cases are to be written and tested. 
+
+Component Specification: BookingUtil (Utility Class) 
+
+Type (Class)
+
+Methods
+
+Responsibilities
+
+Exception
+
+BookingUtil  
+
+public boolean validateCarModel (String [] carModel)
+
+Validate the 'carModel'.
+
+If valid returns true, else this method throws a user-defined exception.
+
+ 
+
+Throws a user-defined exception "InvalidCarBookingException" if the carModel is not from the above-mentioned types.
+
+BookingUtil
+
+public Map<Double, Integer> totalCountOfCarBookingsByPriceWise()
+
+This method returns the count of CarBooking objects based on the price. 
+
+The return type is a 'Map', where the price is the key, and the value is the count of CarBooking with that price.
+
+If the carBookingList is empty, it throws user-defined exception. 
+
+Throws a user-defined exception "InvalidCarBookingException" if the carBookingList is empty. 
+
+BookingUtil
+
+public int totalCountOfCarBookingsToBeDeliveredOnGivenDate(Date deliveryDate)
+
+
+This method returns the count of CarBooking objects based on deliveryDate.
+
+If the carBookingList is empty, it throws user-defined exception.
+
+Throws a user-defined exception "InvalidCarBookingException" if the carBookingList is empty. 
+
+ 
+
+You need to write JUnit tests for the BookingUtil class. 
+
+Testing Scenarios: 
+
+You are provided with a class called 'BookingUtilTest' to do this testing. 
+
+Note: 
+
+To perform testing, the carBookingList should contain objects of the CarBooking. 
+
+To do this in the 'BookingUtilTest' class, you are provided with a 'setUp' method. Use this method to initialize the carBookingList attribute in the BookingUtil class. 
+
+Create objects of CarBooking, populate a list with these objects and set the carBookingList to this list using the 'setCarBookingList' method in the BookingUtil class.  
+
+Following are the test methods to be implemented in the 'BookingUtilTest' class. 
+
+Test Methods
+
+Scenarios / Responsibilities
+
+test11_ValidateCarModelForBrandMaruti
+
+This method should test the validateCarModel method when the array of carModel "Swift, Baleno" is passed as a parameter.
+
+test12_ValidateCarModelForBrandMahindra
+
+This method should test the validateCarModel method when array of carModel "Bolero, Thar" is passed as a parameter.
+
+test13_ValidateCarModelForBrandToyota
+
+This method should test the validateCarModel method when array of carModel "Innova, Glanza" is passed as a parameter.
+
+test14_ValidateCarModelForBrandHyundai
+
+This method should test the validateCarModel method when array of carModel "Exter, Venue" is passed as a parameter.
+
+test15_ValidateCarModelForInvalidCarModel
+
+This method should test the validateCarModel method when array of invalid carModel is passed as a parameter.
+
+validateCarModel is expected to throw InvalidCarBookingException when carModel is invalid.
+
+Write JUnit to test for the exception thrown either by using appropriate annotation or by using a try-catch block.
+
+test16_TotalCountOfCarBookingsByPriceWise
+
+This method should test the correctness of the totalCountOfCarBookingsByPriceWise method.
+
+Perform testing for the correctness of the value returned.
+
+test17_TotalCountOfCarBookingsToBeDeliveredOnGivenDate
+
+This method should test the correctness of the totalCountOfCarBookingsToBeDeliveredOnGivenDate method.
+
+Perform testing for the correctness of the value returned.
+
+test18_TotalCountOfCarBookingsByPriceWiseForEmptyList
+
+
+This method should test the correctness of the totalCountOfCarBookingsByPriceWise method for an empty list.
+
+totalCountOfCarBookingsByPriceWise method throws an 'InvalidCarBookingException' when the 'carBookingList' is empty.
+
+Write JUnit to test for the exception thrown either by using appropriate annotation or by using the try-catch block.
+
+test19_TotalCountOfCarBookingsToBeDeliveredOnGivenDateForEmptyList
+
+
+This method should test the correctness of the totalCountOfCarBookingsToBeDeliveredOnGivenDate method for an empty list.
+
+totalCountOfCarBookingsToBeDeliveredOnGivenDate method throws an 'InvalidCarBookingException' when the 'carBookingList' is empty.
+
+Write JUnit to test for the exception thrown either by using appropriate annotation or by using the try-catch block.
+
+ 
+
+Implement the test methods and provide the needed annotation to all the methods in the BookingUtilTest class.
+
+You are provided with the Main class with the main method to check the correctness of the test methods written in the BookingUtilTest class.
+
+HighlineMotors
+pom.xml
+  src
+    main
+      java
+        com
+          exception
+            -InvalidCarBookingException.java
+          model
+            -CarBooking.java
+          util
+            -BookingUtil.java
+    test
+      java
+        com
+          test
+            -BookingUtilTest.java
+            -Main.java
