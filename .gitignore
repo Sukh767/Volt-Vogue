@@ -1,44 +1,565 @@
-Result Description
+okay its actually working, without loggin it, i forgot to restart the server, now import React, { useState, useEffect, useCallback } from "react";
 
-Fail 1 -- test15_ValidateCarModelForInvalidCarModel::
-Expected com.exception.InvalidCarBookingException to be thrown
- but nothing was thrown.
- 
- Grading and Feedback
-Writing JUnit for a Utility class - 58.0 / 60.0(Success)
+import { Calendar, Clock, Plus, X, ToggleLeft, ToggleRight } from "lucide-react";
 
-Test Coverage - 40 / 40.0(Success)
- 
- Test Case Failed
- Running com.test.BookingUtilTest
-[ERROR] Tests run: 9, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.264 s <<< FAILURE! - in com.test.BookingUtilTest
-[ERROR] test15_ValidateCarModelForInvalidCarModel  Time elapsed: 0.032 s  <<< FAILURE!
-org.opentest4j.AssertionFailedError: Expected com.exception.InvalidCarBookingException to be thrown, but nothing was thrown.
-        at com.test.BookingUtilTest.test15_ValidateCarModelForInvalidCarModel(BookingUtilTest.java:70)
+import { useAuth } from "../../../Context/AuthContext";
 
-[INFO] 
-[INFO] Results:
-[INFO] 
-[ERROR] Failures: 
-[ERROR]   BookingUtilTest.test15_ValidateCarModelForInvalidCarModel:70 Expected com.exception.InvalidCarBookingException to be thrown, but nothing was thrown.
-[INFO] 
-[ERROR] Tests run: 9, Failures: 1, Errors: 0, Skipped: 0
-[INFO] 
-[INFO] ------------------------------------------------------------------------
-[INFO] BUILD FAILURE
-[INFO] ------------------------------------------------------------------------
-[INFO] Total time:  5.700 s
-[INFO] Finished at: 2025-09-02T14:35:56+05:30
-[INFO] ------------------------------------------------------------------------
-[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.22.2:test (default-test) on project HighlineMotors: There are test failures.
-[ERROR] 
-[ERROR] Please refer to /home/p10011/HighlineMotors/target/surefire-reports for the individual test results.
-[ERROR] Please refer to dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
-[ERROR] -> [Help 1]
-[ERROR] 
-[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
-[ERROR] Re-run Maven using the -X switch to enable full debug logging.
-[ERROR] 
-[ERROR] For more information about the errors and possible solutions, please read the following articles:
-[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
-************************BUILD SUCCESSFUL*****************************
+import toast from "react-hot-toast";
+
+import type { DoctorAvailability as Availability } from "../../../api/types";
+
+import "./DoctorAvaliability.css";
+
+import { addDoctorAvailability, deleteDoctorAvailability, getDoctorAvailabilityForDate, updateDoctorAvailability } from "../../../api/doctorService.api";
+
+
+
+const DoctorAvailability: React.FC = () => {
+
+  const { user } = useAuth();
+
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const [availability, setAvailability] = useState<Availability[]>([]);
+
+  const [newTime, setNewTime] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
+
+
+  // --- API Data Fetching ---
+
+  const fetchAvailability = useCallback(async (date: string) => {
+
+    if (!user?.id) return;
+
+    setLoading(true);
+
+    try {
+
+      const data = await getDoctorAvailabilityForDate(date);
+
+      setAvailability(data);
+
+    } catch (error) {
+
+      toast.error("Failed to fetch availability.");
+
+      console.error(error);
+
+      setAvailability([]);
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  }, [user?.id]);
+
+
+
+  useEffect(() => {
+
+    fetchAvailability(selectedDate);
+
+  }, [selectedDate, fetchAvailability]);
+
+
+
+  // --- API Handlers ---
+
+  const handleAddSlot = async () => {
+
+    if (!newTime) {
+
+      toast.error("Please select a time.");
+
+      return;
+
+    }
+
+
+
+    // Convert 24-hour time to a time range (e.g., 10:00 -> 10:00-10:30)
+
+    const [hours, minutes] = newTime.split(':').map(Number);
+
+    const endDate = new Date();
+
+    endDate.setHours(hours, minutes + 30);
+
+    const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+    const timeSlot = `${newTime}-${endTime}`;
+
+    
+
+    try {
+
+      await addDoctorAvailability({
+
+        date: selectedDate,
+
+        timeSlot: timeSlot,
+
+        isAvailable: true, // New slots are available by default
+
+      });
+
+      toast.success("Time slot added!");
+
+      setNewTime("");
+
+      fetchAvailability(selectedDate); // Re-fetch to get the latest data
+
+    } catch (error) {
+
+      toast.error("Failed to add time slot.");
+
+      console.error(error);
+
+    }
+
+  };
+
+  
+
+  const handleToggleAvailability = async (slot: Availability) => {
+
+    try {
+
+      await updateDoctorAvailability(slot.availabilityId, {
+
+        isAvailable: !slot.isAvailable,
+
+      });
+
+      toast.success(`Slot marked as ${!slot.isAvailable ? 'Available' : 'Unavailable'}`);
+
+      fetchAvailability(selectedDate); // Re-fetch for updated state
+
+    } catch (error) {
+
+      toast.error("Failed to update status.");
+
+      console.error(error);
+
+    }
+
+  };
+
+
+
+  const handleRemoveSlot = async (availabilityId: number) => {
+
+    if (window.confirm("Are you sure you want to delete this time slot?")) {
+
+      try {
+
+        await deleteDoctorAvailability(availabilityId);
+
+        toast.success("Time slot deleted.");
+
+        fetchAvailability(selectedDate); // Re-fetch to update the list
+
+      } catch (error) {
+
+        toast.error("Failed to delete time slot.");
+
+        console.error(error);
+
+      }
+
+    }
+
+  };
+
+  
+
+  const formatDate = (dateString: string) => {
+
+    const options: Intl.DateTimeFormatOptions = {
+
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+
+    };
+
+    // Add a day to the date to correct for timezone issues
+
+    const date = new Date(dateString);
+
+    date.setDate(date.getDate() + 1);
+
+    return date.toLocaleDateString(undefined, options);
+
+  };
+
+  
+
+  return (
+
+    <div className="doctor-availability-container">
+
+      <h2 className="availability-title">
+
+        <Calendar size={24} /> My Availability
+
+      </h2>
+
+      
+
+      <div className="add-availability-section">
+
+        <div className="add-date-container">
+
+          <input
+
+            type="date"
+
+            value={selectedDate}
+
+            onChange={(e) => setSelectedDate(e.target.value)}
+
+            className="date-input"
+
+            min={new Date().toISOString().split('T')[0]}
+
+          />
+
+        </div>
+
+      </div>
+
+
+
+      <div className="availability-day">
+
+        <div className="day-header">
+
+          <h3 className="day-date">{formatDate(selectedDate)}</h3>
+
+        </div>
+
+        
+
+        <div className="slots-container">
+
+          {loading ? (
+
+            <p>Loading slots...</p>
+
+          ) : availability.length > 0 ? (
+
+            <div className="time-slots">
+
+              {availability.map((slot) => (
+
+                <div key={slot.availabilityId} className={`time-slot ${!slot.isAvailable ? 'unavailable' : ''}`}>
+
+                  <Clock size={14} /> {slot.timeSlot}
+
+                  <button
+
+                    onClick={() => handleToggleAvailability(slot)}
+
+                    className="toggle-status-button"
+
+                    title={slot.isAvailable ? 'Mark as Unavailable' : 'Mark as Available'}
+
+                  >
+
+                    {slot.isAvailable ? <ToggleRight color="green" /> : <ToggleLeft color="gray" />}
+
+                  </button>
+
+                  <button
+
+                    onClick={() => handleRemoveSlot(slot.availabilityId)}
+
+                    className="remove-slot-button"
+
+                    title="Remove this slot"
+
+                  >
+
+                    <X size={12} />
+
+                  </button>
+
+                </div>
+
+              ))}
+
+            </div>
+
+          ) : (
+
+            <p className="no-slots">No time slots scheduled for this day.</p>
+
+          )}
+
+          
+
+          <div className="add-slot-container">
+
+            <input
+
+              type="time"
+
+              value={newTime}
+
+              onChange={(e) => setNewTime(e.target.value)}
+
+              className="time-input"
+
+              step="1800" // 30-minute intervals
+
+            />
+
+            <button 
+
+              onClick={handleAddSlot}
+
+              className="add-slot-button"
+
+              disabled={!newTime}
+
+            >
+
+              <Plus size={16} /> Add Slot
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  );
+
+};
+
+
+
+export default DoctorAvailability;
+
+call the getAll availability api and show all the availability, and while showing, all availability add delete availability feature. add is Available also, with toggle button, if available then it will disbale effect on that time or day, 
+.doctor-availability-container {
+  background-color: var(--hc-white);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); */
+  height: 100%;
+}
+
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.remove-date-button {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-date-button:hover {
+  background-color: #fee2e2;
+}
+
+.time-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: #e0e7ff;
+  color: #1e40af;
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  position: relative;
+}
+
+.remove-slot-button {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0.15rem;
+  margin-left: 0.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-slot-button:hover {
+  background-color: #fee2e2;
+}
+
+/* Make sure time slots wrap properly */
+.time-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.availability-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+  color: #1f2937;
+}
+
+.add-availability-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.add-date-container {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.date-input, .time-input {
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.add-date-button, .add-slot-button {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+/* Style for the toggle button */
+.toggle-status-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.15rem;
+  margin: 0 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Style for unavailable time slots */
+.time-slot.unavailable {
+  background-color: #f3f4f6; /* Lighter gray */
+  color: #9ca3af; /* Muted text color */
+  text-decoration: line-through;
+}
+
+.time-slot.unavailable .toggle-status-button,
+.time-slot.unavailable .remove-slot-button {
+  color: #9ca3af; /* Muted icon color */
+}
+
+.add-date-button:hover, .add-slot-button:hover {
+  background-color: #2563eb;
+}
+
+.no-availability {
+  color: #6b7280;
+  text-align: center;
+  padding: 1rem;
+}
+
+.availability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.availability-day {
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.day-date {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  color: #1f2937;
+}
+
+.slots-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.time-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.time-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: #e0e7ff;
+  color: #1e40af;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+}
+
+.no-slots {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.add-slot-container {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .add-date-container, .add-slot-container {
+    flex-direction: column;
+  }
+  
+  .date-input, .time-input {
+    width: 100%;
+  }
+  
+  .add-date-button, .add-slot-button {
+    justify-content: center;
+  }
+  
+  .time-slots {
+    justify-content: center;
+  }
+}
