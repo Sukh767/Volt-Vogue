@@ -1,367 +1,265 @@
-import styles from "./AddNewRecord.module.css";
-import { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import assetsData from "../../../assets/assetsData.ts";
+import './Doctor_dashboard.css'
 
-export default function AddNewRecord({
-  handleClose,
-}: {
-  handleClose: () => void;
-}) {
-  const [symptoms, setSymptoms] = useState("");
-  const [bp, setBp] = useState("");
-  const [height, setHeight] = useState("");
-  const [weight, setWeight] = useState("");
-  const [description, setDescription] = useState("");
-  const [medication, setMedication] = useState("");
-  const [instruction, setInstruction] = useState("");
+import {
+  Home,
+  LogOut,
+  User,
+  Bell,
+  Menu,
+  X,
+} from "lucide-react";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
 
-    const payload = {
-      patientId: "P001",
-      doctorId: "D001",
-      symptoms,
-      bloodPressure: bp,
-      height,
-      weight,
-      description,
-      notes: instruction,
-      prescription: [medication],
-      status: "pending",
-    };
+import DocNotification from "../../../Components/Dashboard/doctor/DocNotification.tsx";
+import NotificationCard from "../../../Components/Dashboard/Patient/Notification/NotificationCard.tsx";
+import DocAppointments from "../../../Components/Dashboard/doctor/DocAppointments.tsx";
+import DocAvailability from "../../../Components/Dashboard/doctor/DocAvailability.tsx";
 
-    try {
-      const res = await fetch("/api/consultant-record", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+import DoctorProfileCard from "../../../Components/Dashboard/doctor/DoctorProfileCard.tsx";
+import Appointments from "../../../Components/Dashboard/Patient/Appointment/Appointments.tsx";
+import DoctorAvailability from "../../../Components/Dashboard/Patient/Availability/DoctorAvailability.tsx";
+import Consultations from "../../../Components/Dashboard/Patient/Consultant/Consultation.tsx";
+import PatientProfileCard from "../../../Components/Dashboard/Patient/Profile/PatientProfileCard.tsx";
 
-      if (!res.ok) {
-        throw new Error("Failed to save record");
-      }
+import { useAuth } from "../../../Context/AuthContext.tsx";
 
-      const data = await res.json();
-      console.log("Record saved via API:", data);
+import './Doctor_dashboard.css'
+import DoctorPatientPanel from "../../../Components/Dashboard/doctor/DoctorPatientPanel.tsx";
+import AddNewRecord from "../../../Components/ConsultationPage/AddNewRecord.tsx";
+import { getUnreadNotificationCount } from "../../../api/notificationService.ts";
 
-      handleClose();
-    } catch (err) {
-      console.error("Error saving record:", err);
-    }
+const DashboardLayoutCommon: React.FC = () => {
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const navigate = useNavigate();
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const [notificationsCount, setNotificationsCount] = useState(0);
+
+  const { user, logout } = useAuth(); // user.role: "ROLE_DOCTOR" | "ROLE_PATIENT"
+  const { activeSection, setActiveSection } = useAuth();
+
+  const logoutHandler = () => {
+    logout();
+    toast.success("Logout successful");
+    navigate("/");
   };
 
+  // Close notifications when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    fetchNotificationsCount();
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+
+  /**
+   * Fetch user specific Notifications count
+   */
+
+  const fetchNotificationsCount = async () => {
+    try {
+      const response = await getUnreadNotificationCount();
+      console.log(response); 
+      setNotificationsCount(response.unreadCount || 0);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
   return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContent}>
-        <u>Clinical Notes</u>
-
-        <form onSubmit={handleSubmit}>
-          <h3>Symptoms</h3>
-          <textarea
-            rows={4}
-            cols={50}
-            name="symptoms"
-            placeholder="Enter symptoms"
-            value={symptoms}
-            onChange={(e) => setSymptoms(e.target.value)}
-          />
-
-          <h3>Additional Details</h3>
-          <div className={styles.additionalDetails}>
-            <input
-              type="text"
-              name="bp"
-              placeholder="Blood Pressure"
-              value={bp}
-              onChange={(e) => setBp(e.target.value)}
-            />
-            <input
-              type="text"
-              name="height"
-              placeholder="Height"
-              value={height}
-              onChange={(e) => setHeight(e.target.value)}
-            />
-            <input
-              type="text"
-              name="weight"
-              placeholder="Weight"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-            />
-          </div>
-
-          <h3>Description</h3>
-          <textarea
-            name="description"
-            rows={4}
-            cols={50}
-            placeholder="Enter detailed description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-
-          <h3>
-            <u>Prescription</u>
-          </h3>
-          <label htmlFor="medication" className={styles.Medication}>
-            Medication:
-          </label>
-          <select
-            name="medication"
-            id="medication"
-            value={medication}
-            onChange={(e) => setMedication(e.target.value)}
+    <div className="dashboard">
+      {/* Header */}
+      <header className="dashboard__header">
+        <div className="dashboard__header-left">
+          <button
+            className="dashboard__menu-toggle"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
-            <option value="" disabled>
-              -- Select Medication --
-            </option>
-            <option value="paracetamol">Paracetamol</option>
-            <option value="antibiotic">Antibiotic</option>
-          </select>
+            <Menu size={24} />
+          </button>
+          <h1 className="dashboard__title">Healthcare Dashboard</h1>
+        </div>
 
-          <h3>
-            <label htmlFor="instruction">Instruction:</label>
-          </h3>
-          <textarea
-            id="instruction"
-            rows={4}
-            cols={50}
-            name="instruction"
-            placeholder="..."
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-          />
-
-          <div className={styles.buttonGroup}>
-            <button type="submit">Submit</button>
-            <button type="button" onClick={handleClose}>
-              Cancel
+        <div className="dashboard__header-right">
+          <div className="dashboard__notification" ref={notificationRef}>
+            <button
+              className="dashboard__notification-btn"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <Bell size={24} />
+              <span className="dashboard__notification-badge"></span>
             </button>
+
+            {showNotifications && (
+              <div className="dashboard__notification-dropdown">
+                {user?.role === "ROLE_DOCTOR" ? (
+                  <DocNotification />
+                ) : (
+                  <NotificationCard />
+                )}
+              </div>
+            )}
           </div>
-        </form>
-      </div>
+          <div className="dashboard__user-profile">
+            <User size={24} />
+          </div>
+        </div>
+      </header>
+
+      {/* Sidebar */}
+      <aside
+        className={`dashboard__sidebar ${isSidebarOpen ? "dashboard__sidebar--open" : ""}`}
+      >
+        <div className="dashboard__sidebar-header">
+          <div className="dashboard__sidebar-logo">
+            <Link to="/">
+              <img src={assetsData.logo} alt="Healthcare Logo" />
+              <span>HealthCare</span>
+            </Link>
+          </div>
+          <button 
+            className="dashboard__sidebar-close" 
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <nav className="dashboard__sidebar-nav">
+          <ul className="dashboard__sidebar-list">
+            <li
+              className={`dashboard__sidebar-item ${activeTab === "dashboard" ? "dashboard__sidebar-item--active" : ""}`}
+              onClick={() => setActiveTab("dashboard")}
+            >
+              <Home size={20} />
+              <span>Dashboard</span>
+            </li>
+
+            <li
+              className={`dashboard__sidebar-item ${activeTab === "profile" ? "dashboard__sidebar-item--active" : ""}`}
+              onClick={() => setActiveTab("profile")}
+            >
+              <User size={20} />
+              <span>Profile</span>
+            </li>
+
+            <li 
+              className="dashboard__sidebar-item dashboard__sidebar-item--logout" 
+              onClick={logoutHandler}
+            >
+              <LogOut size={20} />
+              <span>Logout</span>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+
+      {/* Overlay for mobile */}
+      {isSidebarOpen && (
+        <div
+          className="dashboard__sidebar-overlay"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+
+      {/* Main Content */}
+      <main className="dashboard__main">
+        {activeSection ? (
+          <div className="dashboard__main--consultpage">
+            <AddNewRecord/>
+          </div>
+        ) : (
+          <>
+            {/* Doctor Dashboard */}
+            {user?.role === "ROLE_DOCTOR" && (
+              <>
+                {activeTab === "dashboard" && (
+                  <div className="dashboard__content">
+                    <div className="dashboard__grid dashboard__grid--doctor">
+                      <div className="dashboard__grid-card dashboard__grid-card--appointments">
+                        <DocAppointments />
+                      </div>
+                      <div className="dashboard__grid-card dashboard__grid-card--availability">
+                        < DocAvailability/>
+                      </div>
+                      <div className="dashboard__grid-card dashboard__grid-card--full-width">
+                        <DoctorPatientPanel />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "profile" && (
+                  <div className="dashboard__content">
+                    <div className="dashboard__grid">
+                      <div className="dashboard__grid-card dashboard__grid-card--full-width">
+                        <DoctorProfileCard />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Patient Dashboard */}
+            {user?.role === "ROLE_PATIENT" && (
+              <>
+                {activeTab === "dashboard" && (
+                  <div className="dashboard__content">
+                    <div className="dashboard__grid dashboard__grid--patient">
+                      <div className="dashboard__grid-card dashboard__grid-card--appointments">
+                        <Appointments />
+                      </div>
+                      <div className="dashboard__grid-card dashboard__grid-card--consultations">
+                        <Consultations />
+                      </div>
+                      <div className="dashboard__grid-card dashboard__grid-card--full-width">
+                        <DoctorAvailability />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "profile" && (
+                  <div className="dashboard__content">
+                    <div className="dashboard__grid">
+                      <div className="dashboard__grid-card dashboard__grid-card--full-width">
+                        <PatientProfileCard />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="dashboard__footer">
+        <p>© 2024 Healthcare - All rights reserved</p>
+      </footer>
     </div>
   );
+};
+
+export default DashboardLayoutCommon;
+
+by calling fetchNotificationsCount these i am getting the data {
+    "unreadCount": 16,
+    "hasNewNotifications": true
 }
-
-I want these formfield and get all working 
-    symptoms: '',
-    bloodPressure: '',
-    height: '',
-    weight: '',
-    description: '',
-    notes: ''
-      const [isLoading, setIsLoading] = useState(true);
-      const [isSubmitting, setIsSubmitting] = useState(false);
-      
-      const [formData, setFormData] = useState({
-        symptoms: '',
-        bloodPressure: '',
-        height: '',
-        weight: '',
-        description: '',
-        notes: ''
-      });
-    
-      // Fetch existing consultation if available
-      useEffect(() => {
-        const fetchConsultation = async () => {
-          if (!appointmentId) return;
-          
-          try {
-            const consultationData = await getConsultationForAppointment(parseInt(appointmentId));
-            setConsultation(consultationData);
-            setFormData({
-              symptoms: consultationData.symptoms || '',
-              bloodPressure: consultationData.bloodPressure || '',
-              height: consultationData.height?.toString() || '',
-              weight: consultationData.weight?.toString() || '',
-              description: consultationData.description || '',
-              notes: consultationData.notes || ''
-            });
-          } catch (error) {
-            console.log('No existing consultation found, creating new one');
-          } finally {
-            setIsLoading(false);
-          }
-        };
-    
-        fetchConsultation();
-      }, [appointmentId]);
-    
-      const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-      };
-    
-      const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!appointmentId) return;
-        
-        setIsSubmitting(true);
-        try {
-          const payload: CreateConsultationPayload = {
-            symptoms: formData.symptoms,
-            bloodPressure: formData.bloodPressure,
-            height: formData.height ? parseInt(formData.height) : undefined,
-            weight: formData.weight ? parseFloat(formData.weight) : undefined,
-            description: formData.description,
-            notes: formData.notes,
-            status: 'Completed'
-          };
-          
-          await createConsultation(parseInt(appointmentId), payload);
-          toast.success('Consultation saved successfully!');
-          navigate('/dashboard/doctor');
-        } catch (error: any) {
-          toast.error(error.response?.data?.message || 'Failed to save consultation.');
-        } finally {
-          setIsSubmitting(false);
-        }
-      };
-    
-      if (isLoading) {
-        return <div className="consultation-loading">Loading consultation form...</div>;
-      }
-      import type { Consultation, CreateConsultationPayload } from '../../api/types';
-      import { createConsultation, getConsultationForAppointment } from '../../api/consultationService';
-      make changes and update the css also, X button right side , enhance css styling , and use core css. call the api 
-
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  padding: 1rem;
-  box-sizing: border-box;
-}
-
-.modalContent {
-  background-color: #ffffff;
-  padding: 1.5rem;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 800px;
-  max-height: 90%;
-  overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.modalContent h3 {
-  margin-top: 1.5rem;
-  margin-bottom: 0.5rem;
-  font-size: 1.2rem;
-  color: #333;
-}
-
-.modalContent textarea,
-.modalContent input,
-.modalContent select {
-  width: 100%;
-  padding: 10px;
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 1rem;
-  resize: vertical;
-  box-sizing: border-box;
-}
-
-.additionalDetails {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 1rem;
-}
-
-.buttonGroup {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.buttonGroup button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  flex: 1;
-  min-width: 120px;
-}
-
-.buttonGroup button[type="submit"] {
-  background-color: #28a745;
-  color: white;
-}
-
-.buttonGroup button[type="submit"]:hover {
-  background-color: #218838;
-}
-
-.buttonGroup button[type="button"] {
-  background-color: #dc3545;
-  color: white;
-}
-
-.buttonGroup button[type="button"]:hover {
-  background-color: #c82333;
-}
-
-.Medication {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
-}
-
-/* Responsive styles */
-@media (min-width: 768px) {
-  .additionalDetails {
-    flex-direction: row;
-  }
-
-  .buttonGroup button {
-    flex: 0 1 auto;
-  }
-}
-
-@media (max-width: 480px) {
-  .modalContent {
-    padding: 1rem;
-  }
-
-  .modalContent h3 {
-    font-size: 1.1rem;
-  }
-
-  .buttonGroup {
-    flex-direction: column;
-  }
-
-  .buttonGroup button {
-    width: 100%;
-  }
-}
+now use these data at notifications icon to preview the notification number and autofetching to get the new data.
