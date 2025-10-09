@@ -1,666 +1,558 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Home, LogOut, User, FileText, Calendar,
-  LayoutDashboard, Shield, Settings, Users2Icon
+import React, { useState, type ChangeEvent, type FormEvent } from "react";
+import toast from "react-hot-toast";
+import { Link, useNavigate } from "react-router-dom";
+import { login as apiLogin } from "../../../api/authService.ts";
+import { useAuth } from "../../../Context/AuthContext";
+import { 
+  Eye, 
+  EyeOff, 
+  Mail, 
+  Lock, 
+  Stethoscope, 
+  UserPlus,
+  ArrowLeft
 } from 'lucide-react';
-import './Layout.css';
-import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../../hooks/AuthContext';
+import './Login.css';
 
-const DashboardLayout: React.FC = () => {
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('Home');
-  const { logout, user } = useAuth();
-
+const LoginAuth: React.FC = () => {
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
-  const location = useLocation();
+  const { login: updateAuthContext } = useAuth();
 
-  useEffect(() => {
-    const checkIsMobile = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
+  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  };
 
-      if (mobile) {
-        setIsSidebarExpanded(false);
-      } else {
-        setIsSidebarExpanded(true);
-        setIsMobileSidebarOpen(false);
-      }
-    };
+  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  };
 
-    checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
-    return () => window.removeEventListener('resize', checkIsMobile);
-  }, []);
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
-  const handleTabClick = (tabName: string, path?: string, isAction?: boolean) => {
-    setActiveTab(tabName);
-    if (isAction) {
-      logout();
-      navigate('/login');
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    // Basic validation
+    if (!email || !password) {
+      toast.error("Please enter both email and password.");
+      setIsLoading(false);
       return;
     }
-    if (path) navigate(path);
-    if (isMobile) setIsMobileSidebarOpen(false);
-  };
 
-  const sidebarConfig: Record<string, { id: string; name: string; icon: React.ElementType; path?: string; isAction?: boolean }[]> = {
-    ADMIN: [
-      { id: 'agents', name: 'Agents', icon: User, path: '/dashboard/admin/agents' },
-      { id: 'customers', name: 'Customers', icon: Users2Icon, path: '/dashboard/admin/customer' },
-      { id: 'policies', name: 'Policies', icon: Shield, path: '/dashboard/admin/policy/list' },
-      { id: 'claims', name: 'Claims', icon: FileText, path: '/dashboard/admin/claims' },
-      { id: 'notifications', name: 'Notifications', icon: Calendar, path: '/dashboard/notifications' },
-    ],
-    AGENT: [
-      { id: 'dashboard', name: 'Profile', icon: Home, path: '/dashboard/profile' },
-      { id: 'customers', name: 'My Customers', icon: Users2Icon, path: '/dashboard/agent/customers' },
-      { id: 'enroll', name: 'Enroll Policy', icon: Settings, path: '/dashboard/agent/plans' },
-      // { id: 'notifications', name: 'Notifications', icon: Calendar, path: '/dashboard/notifications' },
-    ],
-    CUSTOMER: [
-      { id: 'dashboard', name: 'Dashboard', icon: Home, path: '/dashboard/profile' },
-      { id: 'enroll', name: 'Enroll Policy', icon: FileText, path: '/dashboard/plans' },
-      // { id: 'policies', name: 'My Policies', icon: Shield, path: '/dashboard/customer/policies' },
-      { id: 'file-claim', name: 'File Claim', icon: FileText, path: '/dashboard/customer/fileClaim' },
-      { id: 'notifications', name: 'Notifications', icon: Calendar, path: '/dashboard/notifications' },
-    ],
-  };
+    try {
+      const authData = await apiLogin({ email, password });
+      console.log("Login api response", authData);
 
-  const sidebarTabs = sidebarConfig[user?.role || 'CUSTOMER'];
+      if(!authData.status) {
+        toast.error("Login failed. Please try again.");
+        setIsLoading(false);
+        throw new Error("Invalid login response");
+      } else if(authData?.user?.role == 'ROLE_DOCTOR' && authData.status) {
+        toast.success('Login successful! Welcome Doctor');
+        navigate('/dashboard');
+      } else if(authData?.user?.role == 'ROLE_PATIENT' && authData.status) {
+        toast.success('Login successful! Welcome back');
+        navigate('/dashboard');
+      }
+
+      updateAuthContext(authData);
+      
+    } catch (error: any) {
+      console.error("Error at Login Auth", error);
+      let errorMessage = "Invalid credentials. Please try again.";
+      if (error.response?.data?.error) {
+        const err = error.response.data.error;
+        errorMessage = `Login failed (${err.status}): ${err.message}`;
+        if (err.path) {
+          errorMessage += ` [${err.path}]`;
+        }
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="dashboard-container">
-      <aside
-        className={`dashboard-sidebar ${isSidebarExpanded ? 'expanded' : 'collapsed'} ${
-          isMobileSidebarOpen ? 'mobile-open' : ''
-        }`}
-      >
-        <div className="sidebar-header-bg">
-          <div className="sidebar-logo">
-            <Link to="/" className="sidebar-logo-link">
-              <div className="logo-icon">
-                <LayoutDashboard />
-              </div>
-              {isSidebarExpanded && <span className="logo-text">Insurance Management System</span>}
-            </Link>
+    <div className="login-container">
+      {/* Left side - Image/Illustration */}
+      <div className="login-left">
+        <div className="login-back-button" onClick={() => navigate("/")}>
+          <ArrowLeft size={20} />
+          <span>Back to Home</span>
+        </div>
+        
+        <div className="login-illustration">
+          <div className="login-illustration-content">
+            <h2>Welcome to HealthConnect</h2>
+            <p>Your journey to better healthcare starts here</p>
           </div>
         </div>
 
-        <nav className="sidebar-nav">
-          <ul className="nav-list">
-            {sidebarTabs.map((tab) => {
-              const IconComponent = tab.icon;
-              const isActive = location.pathname === tab.path || activeTab === tab.id;
-
-              return (
-                <li key={tab.id} className="nav-item">
-                  <button
-                    className={`nav-link ${isActive ? 'active' : ''} ${tab.isAction ? 'action-btn' : ''}`}
-                    onClick={() => handleTabClick(tab.id, tab.path, tab.isAction)}
-                  >
-                    <IconComponent size={20} />
-                    {isSidebarExpanded && <span className="nav-text">{tab.name}</span>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+        {/* <div className="login-credentials">
+          <div className="login-credentials__user login-credentials__user--doctor">
+            <h4>Doctor Test Account</h4>
+            <p className="login-credentials__email">doctor@example.com</p>
+            <p className="login-credentials__password">Password: doctor123</p>
+          </div>
           
+          <div className="login-credentials__user login-credentials__user--patient">
+            <h4>Patient Test Account</h4>
+            <p className="login-credentials__email">patient@example.com</p>
+            <p className="login-credentials__password">Password: patient123</p>
+          </div>
+        </div> */}
+      </div>
 
-        </nav>
-        <button className="logout-btn" onClick={() => {
-    logout();
-    navigate('/login');
-  }}>
-            Logout
-          </button>
-      </aside>
+      {/* Right side - Form */}
+      <div className="login-right">
+        <div className="login-form-container">
+          <div className="login-header">
+            <div className="login-icon">
+              <Stethoscope size={32} />
+            </div>
+            <h1>Sign In</h1>
+            <p>Access your HealthConnect account</p>
+          </div>
 
-
-      {isMobile && isMobileSidebarOpen && (
-        <div className="sidebar-overlay" onClick={() => setIsMobileSidebarOpen(false)}></div>
-      )}
-
-      <main className="dashboard-main">
-        <div className="main-content">
-          {/* <div className="welcome-section">
-            <h2>
-              {user?.role === 'ADMIN' ? `Welcome, ${user?.fullName}` :
-               user?.role === 'AGENT' ? `Welcome, Agent ${user?.fullName}` :
-               `Welcome, ${user?.fullName}`}
-            </h2>
-            <div className="dashboard-tabs">
-              {user?.role === 'CUSTOMER' && (
-                <>
-                  <button
-                    className={`dashboard-tab ${location.pathname.includes('profile') ? 'active' : ''}`}
-                    onClick={() => navigate('/dashboard/profile')}
-                  >
-                    My Profile
-                  </button>
-                  <button
-                    className={`dashboard-tab ${location.pathname.includes('policies') ? 'active' : ''}`}
-                    onClick={() => navigate('/dashboard/customer/policies')}
-                  >
-                    My Policies
-                  </button>
-                  <button
-                    className={`dashboard-tab ${location.pathname.includes('claims') ? 'active' : ''}`}
-                    onClick={() => navigate('/dashboard/customer/claims')}
-                  >
-                    My Claims
-                  </button>
-                </>
-              )}
+          <form className="login-form" onSubmit={handleSubmit}>
+            <div className="login-input-group">
+              <label htmlFor="email" className="login-label">
+                <Mail size={18} className="login-input-icon" />
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={handleEmailChange}
+                required
+                className="login-input"
+              />
             </div>
 
+            <div className="login-input-group">
+              <label htmlFor="password" className="login-label">
+                <Lock size={18} className="login-input-icon" />
+                Password
+              </label>
+              <div className="login-password-container">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={handlePasswordChange}
+                  required
+                  className="login-input"
+                />
+                <button
+                  type="button"
+                  className="login-password-toggle"
+                  onClick={togglePasswordVisibility}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              className="login-submit-btn"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Signing In...' : 'Sign In'}
+            </button>
+
+            {/* <div className="login-links">
+              <Link to="/auth/forgot-password" className="login-link">
+                Forgot password?
+              </Link>
+            </div> */}
+          </form>
+
+          <div className="login-divider">
+            <span>Don't have an account?</span>
+          </div>
+
+          <div className="login-register-options">
+            <Link to="/auth/register" className="login-register-btn">
+              <UserPlus size={18} />
+              <span>Register as Patient</span>
+            </Link>
             
-          </div> */}
-          <Outlet />
+            <Link to="/doctor/register" className="login-register-btn login-register-btn--doctor">
+              <Stethoscope size={18} />
+              <span>Register as Doctor</span>
+            </Link>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
 
-export default DashboardLayout;
-
-
-
-
-
-
-/* Layout.css */
-:root {
-  --primary-color: #2563eb;
-  --primary-dark: #1d4ed8;
-  --secondary-color: #64748b;
-  --accent-color: #f1f5f9;
-  --border-color: #e2e8f0;
-  --text-color: #1e293b;
-  --text-light: #64748b;
-  --white: #ffffff;
-  --gray-light: #f8fafc;
-  --gray-dark: #475569;
-  --alert-color: #dc2626;
-  --success-color: #16a34a;
-  --warning-color: #d97706;
-  --sidebar-bg-dark: #1d2e4b;
-  
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-  
-  --border-radius: 8px;
-  --border-radius-lg: 12px;
-}
-
-.dashboard-tabs {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-}
-
-.dashboard-tab {
-  padding: 0.5rem 1rem;
-  background-color: #007cf7;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.3s ease;
-}
-
-/* .dashboard-tab:hover {
-  background-color: #dbeafe;
-  color: #1e293b;
-}
-
-.dashboard-tab.active {
-  background-color: #2563eb;
-  color: white;
-}
-
-
-
-/* Dashboard Layout Styles */
-.dashboard-container {
+export default LoginAuth;
+/* Login.css - Independent Styles */
+.login-container {
   display: flex;
   min-height: 100vh;
-  position: relative;
-  background-color: var(--gray-light);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
-/* Header Styles */
-.dashboard-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 70px;
-  background-color: var(--white);
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 2rem;
-  z-index: 1000;
-  box-shadow: var(--shadow-sm);
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.menu-toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-color);
-  padding: 0.5rem;
-  border-radius: var(--border-radius);
-  transition: background-color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* .menu-toggle:hover {
-  background-color: var(--accent-color);
-} */
-
-.header-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary-color);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 1rem;
-  background-color: var(--accent-color);
-  border-radius: var(--border-radius-lg);
-}
-
-.user-name {
-  font-weight: 600;
-  color: var(--text-color);
-  font-size: 0.95rem;
-}
-
-.user-role-badge {
-  background: var(--primary-color);
-  color: var(--white);
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-/* Sidebar Styles */
-.dashboard-sidebar {
-  position: fixed;
-  /* top: 70px; */
-  left: 0;
-  /* height: calc(100vh - 70px); */
-  height: 100%;
-  background-color: var(--sidebar-bg-dark);
-  border-right: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.3s ease, width 0.3s ease;
-  z-index: 999;
-  overflow-y: auto;
-  width: 280px;
-}
-
-.dashboard-sidebar.collapsed {
-  width: 80px;
-}
-
-.dashboard-sidebar.mobile-open {
-  transform: translateX(0);
-}
-
-/* Sidebar scrollbar styling */
-.dashboard-sidebar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.dashboard-sidebar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.dashboard-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-}
-
-/* .dashboard-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(244, 1, 1, 0.3);
-} */
-
-.sidebar-header-bg {
-  padding: 1rem;
-  background-color: var(--sidebar-bg-dark);
-}
-
-.sidebar-logo {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.logo-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-  border-radius: var(--border-radius);
+/* Left side - Image/Illustration */
+.login-left {
+  flex: 1;
+  background: linear-gradient(135deg, #117c6f 0%, #289c8e 100%);
   color: white;
-  flex-shrink: 0;
-}
-
-.sidebar-logo-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: var(--white);
-  text-decoration: none;
-}
-
-span.logo-text {
-  font-weight: 600;
-  font-size: 1.5rem;
-  margin-top: 15px;
-  color: var(--white);
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: 1rem 0;
-}
-
-.nav-list {
+  padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0 1rem;
+  justify-content: space-between;
+  position: relative;
 }
 
-.nav-item {
-  width: 100%;
+.login-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  cursor: pointer;
+  margin-bottom: 2rem;
+  font-weight: 500;
+  opacity: 0.9;
+  transition: opacity 0.2s;
 }
 
-.nav-link {
+.login-back-button:hover {
+  opacity: 1;
+}
+
+.login-illustration {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  width: 100%;
-  padding: 1rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
-  text-align: left;
-  font-size: 0.95rem;
-  font-weight: 500;
-  border-radius: var(--border-radius);
-  position: relative;
-  overflow: hidden;
-}
-
-.nav-link::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 0;
-  background: var(--primary-color);
-  border-radius: 0 4px 4px 0;
-  transition: height 0.3s ease;
-}
-
-.nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: var(--white);
-  padding-left: 1.25rem;
-} */
-
-.nav-link:hover::before {
-  height: 60%;
-  color: #1e293b;
-}
-
-.nav-link.active {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: var(--white);
-}
-
-.nav-link.active::before {
-  height: 80%;
-  background: var(--primary-color);
-}
-
-.nav-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 700;
-  font-size: 17px;
-}
-
-.nav-link.action-btn {
-  color: #fca5a5;
-  margin-top: auto;
-}
-
-.nav-link.action-btn:hover {
-  background-color: rgb(220, 38, 38);
-  color: #fecaca;
-  
-}
-
-/* Main Content Styles */
-.dashboard-main {
+  justify-content: center;
   flex: 1;
-  margin-top: 15px;
-  /* margin-left: 280px; */
-  background: linear-gradient(135deg, var(--gray-light) 0%, var(--accent-color) 100%);
-  padding: 2rem;
-  overflow-y: auto;
-  min-height: calc(100vh - 70px);
-  transition: margin-left 0.3s ease;
 }
 
-/* Adjust main content when sidebar is collapsed */
-.dashboard-sidebar.collapsed ~ .dashboard-main {
-  margin-left: 80px;
+.login-illustration-content {
+  text-align: center;
+  max-width: 400px;
 }
 
-.main-content {
-  width: 100%;
-
-}
-
-.welcome-section {
-  background: var(--white);
-  padding: 2rem;
-  border-radius: var(--border-radius-lg);
-  margin-bottom: 2rem;
-  margin-left: 30px;
-  margin-right: 30px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
-}
-
-.welcome-section h2 {
-  font-size: 1.75rem;
+.login-illustration-content h2 {
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
   font-weight: 700;
-  color: var(--text-color);
+}
+
+.login-illustration-content p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+/* Right side - Form */
+.login-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background-color: #f8fafc;
+}
+
+.login-form-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.login-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #117c6f 0%, #289c8e 100%);
+  margin-bottom: 1rem;
+  color: white;
+}
+
+.login-header h1 {
+  font-size: 2rem;
+  color: #117c6f;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.login-header p {
+  color: #64748b;
+}
+
+/* Form elements */
+.login-form {
+  margin-bottom: 1.5rem;
+}
+
+.login-input-group {
+  margin-bottom: 1.25rem;
+}
+
+.login-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #334155;
+  font-size: 0.9rem;
   margin-bottom: 0.5rem;
 }
 
-.welcome-section p {
-  color: var(--text-light);
-  font-size: 1.1rem;
+.login-input-icon {
+  color: #117c6f;
 }
 
-/* Overlay for mobile */
-.sidebar-overlay {
-  position: fixed;
-  top: 70px;
+.login-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 1rem;
+  color: #1e293b;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: #117c6f;
+  box-shadow: 0 0 0 3px rgba(17, 124, 111, 0.1);
+}
+
+.login-input::placeholder {
+  color: #94a3b8;
+}
+
+.login-password-container {
+  position: relative;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s ease;
+}
+
+.login-password-toggle:hover {
+  color: #117c6f;
+}
+
+.login-submit-btn {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #117c6f 0%, #289c8e 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 0.5rem;
+}
+
+.login-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(17, 124, 111, 0.3);
+}
+
+.login-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-links {
+  text-align: right;
+  margin-top: 1rem;
+}
+
+.login-link {
+  color: #117c6f;
+  font-size: 0.9rem;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+}
+
+.login-divider {
+  position: relative;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.login-divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
   left: 0;
   right: 0;
-  bottom: 0;
-  background-color: rgba(29, 30, 43, 0.5);
-  z-index: 998;
-  display: none;
+  height: 1px;
+  background: #e2e8f0;
+  z-index: 1;
 }
 
-/* Responsive Styles */
+.login-divider span {
+  background: #f8fafc;
+  position: relative;
+  z-index: 2;
+  padding: 0 1rem;
+}
+
+.login-register-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.login-register-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  border: 1.5px solid #117c6f;
+  border-radius: 8px;
+  color: #117c6f;
+  background: white;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.login-register-btn:hover {
+  background: #117c6f;
+  color: white;
+}
+
+.login-register-btn--doctor {
+  border-color: #6b7280;
+  color: #6b7280;
+}
+
+.login-register-btn--doctor:hover {
+  background: #6b7280;
+  color: white;
+}
+
+/* Test credentials */
+.login-credentials {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.login-credentials__user {
+  flex: 1;
+  background-color: rgba(255, 255, 255, 0.15);
+  padding: 1rem;
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.login-credentials__user h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.login-credentials__email,
+.login-credentials__password {
+  margin: 0.25rem 0;
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.login-credentials__email {
+  color: #a5f3fc;
+}
+
+.login-credentials__password {
+  font-weight: 600;
+  color: #fde68a;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
-  .dashboard-header {
-    padding: 0 1rem;
-    height: 60px;
+  .login-container {
+    flex-direction: column;
   }
-
-  .header-title {
-    font-size: 1.25rem;
+  
+  .login-left {
+    padding: 1.5rem;
+    min-height: 40vh;
   }
-
-  .user-name {
-    display: none;
-  }
-
-  .dashboard-sidebar {
-    top: 60px;
-    height: calc(100vh - 60px);
-    transform: translateX(-100%);
-    width: 280px;
-  }
-
-  .dashboard-sidebar.mobile-open {
-    transform: translateX(0);
-  }
-
-  .dashboard-main {
-    margin-left: 0 !important;
-    margin-top: 60px;
-    padding: 1rem;
-  }
-
-  .sidebar-overlay {
-    display: block;
-    top: 60px;
-  }
-
-  .welcome-section {
+  
+  .login-right {
     padding: 1.5rem;
   }
-
-  .welcome-section h2 {
-    font-size: 1.5rem;
+  
+  .login-credentials {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .login-illustration-content h2 {
+    font-size: 1.75rem;
   }
 }
 
 @media (max-width: 480px) {
-  .dashboard-main {
+  .login-left,
+  .login-right {
+    padding: 1rem;
+  }
+  
+  .login-header h1 {
+    font-size: 1.75rem;
+  }
+  
+  .login-register-options {
+    gap: 0.5rem;
+  }
+  
+  .login-register-btn {
     padding: 0.75rem;
-  }
-
-  .welcome-section {
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .welcome-section h2 {
-    font-size: 1.25rem;
-  }
-
-  .sidebar-header-bg {
-    padding: 1rem;
-  }
-
-  .nav-link {
-    padding: 0.875rem;
+    font-size: 0.9rem;
   }
 }
-
-/* Custom scrollbar for main content */
-.dashboard-main::-webkit-scrollbar {
-  width: 8px;
-}
-
-.dashboard-main::-webkit-scrollbar-track {
-  background: var(--accent-color);
-}
-
-.dashboard-main::-webkit-scrollbar-thumb {
-  background: var(--alert-color);
-  border-radius: 4px;
-}
-
-.dashboard-main::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-dark);
-}
-
-/* Animation for sidebar */
-.dashboard-sidebar {
-  animation: slideInLeft 0.3s ease;
-}
-
-@keyframes slideInLeft {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-/* Ensure all interactive elements are visible */
-.dashboard-container button,
-.dashboard-container a {
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-.logout-btn {
-  width: 80%;
-  margin: 0 auto;
-  margin-bottom: 20px;
-  padding: 12px;
-  background: rgba(229, 62, 62, 0.8);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 14px;
-  font-weight: 600;
-}
- 
-.logout-btn:hover {
-  background: rgba(229, 62, 62, 1);
-}
- 
