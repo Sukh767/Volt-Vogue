@@ -121,3 +121,91 @@ Cloud Basics: Core concepts of cloud computing (AWS/Azure basics). Understanding
 Kubernetes (K8s): Basic understanding of Pods, Deployments, and Services for container orchestration.
 
 💡 Capstoning Your Learning: Don't just read about these. Throughout this 12-week program, build a single, evolving project. Start with a Java console app in Phase 1, turn it into a Spring Boot application with a database in Phases 2 & 3, and break it into microservices deployed via Docker in Phase 4.
+
+
+
+
+
+
+
+
+Here is the curated, production-level resource catalog mapped directly to your 12-week upskilling program.
+
+These resources focus strictly on engineering internals, architectural trade-offs, and under-the-hood mechanics rather than basic syntax tutorials.
+
+---
+
+## Phase 1: Advanced Java Core (Weeks 1–3)
+
+### 📚 Textbooks
+
+* **"Effective Java" (3rd Edition)** by Joshua Bloch
+* *Focus:* Deep dive into how language components behave. Essential for understanding internal collection structures, avoiding common API design anti-patterns, and utilizing generic bounds effectively.
+
+
+* **"Java Concurrency in Practice"** by Brian Goetz
+* *Focus:* Memory models, low-level concurrency, race conditions, thread safety, and thread pool scaling.
+
+
+
+### 📺 Video Playlists
+
+* **[Defog Tech](https://www.youtube.com/c/DefogTech/videos) (YouTube):** Best-in-class, visually animated deep dives into the Java Memory Model (JMM), thread synchronization, `Volatile` vs `Atomic`, and `ExecutorService` internals.
+* **[Amigoscode - Java Collections](https://www.youtube.com/@amigoscode/playlists) (YouTube):** Practical deep dives into lists, sets, and map behaviors, tracing memory performance under data loads.
+
+---
+
+## Phase 2: Data, Testing, & Build Tools (Weeks 4–5)
+
+### 📚 Textbooks
+
+* **"High-Performance Java Persistence"** by Vlad Mihalcea
+* *Focus:* Written by a core Hibernate engineer. This book explains database transaction management, fetching strategies, N+1 query optimization, and memory cache synchronization.
+
+
+* **"Unit Testing Principles, Practices, and Patterns"** by Vladimir Khorikov
+* *Focus:* Teaches how to write resilient unit tests, properly mock boundaries using Mockito without over-specifying, and optimize code coverage.
+
+
+
+### 📺 Video Playlists
+
+* **[Thorben Janssen](https://www.youtube.com/channel/UCYeDPubBiFCZXIOgGYoyADw/videos) (YouTube):** Advanced Hibernate/JPA tips. Covers query performance tuning, entity lifecycle states, and custom entity mapping techniques.
+
+---
+
+## Phase 3: Spring Boot & REST APIs (Weeks 6–8)
+
+### 📚 Textbooks
+
+* **"Spring Start Here"** by Laurentiu Spilca
+* *Focus:* Master how the Spring Application Context works under the hood. Explains how the framework manages proxy objects, hooks into reflection, and coordinates aspect-oriented programming (AOP) like `@Transactional`.
+
+
+
+### 📺 Video Playlists
+
+* **[Java Brains - Spring Boot Quick Start](https://www.youtube.com/watch?v=ZvSRcsdqpsk) (YouTube):** Kaushik's architectural breakdown of dependency injection, component scanning, framework bootstrapping, configuration profiles, and REST mappings.
+
+---
+
+## Phase 4: Microservices & Cloud (Weeks 9–12)
+
+### 📚 Textbooks
+
+* **"Designing Data-Intensive Applications"** by Martin Kleppmann
+* *Focus:* The definitive handbook on distributed architecture. Necessary for understanding split-brain situations, consensus protocols, and asynchronous messaging trade-offs.
+
+
+* **"Microservices Patterns"** by Chris Richardson
+* *Focus:* Concrete enterprise implementations for distributed systems, fully detailing the design mechanics of SAGA, CQRS, and API Composition.
+
+
+
+### 📺 Video Playlists
+
+* **[Java Brains - Spring Boot Microservices Level 1](https://www.youtube.com/watch?v=ZvSRcsdqpsk) (YouTube):** An ongoing deep-dive playlist detailing inter-service synchronous communication via `WebClient`, Service Discovery using Eureka, and managing distributed configuration properties.
+
+---
+
+This highly acclaimed video [Spring Boot Microservices Level 1: Communication and Discovery](https://www.youtube.com/watch?v=ZvSRcsdqpsk) by Java Brains breaks down step-by-step how distinct applications connect, map data models over network boundaries, and dynamically locate each other inside a distributed cluster architecture.
